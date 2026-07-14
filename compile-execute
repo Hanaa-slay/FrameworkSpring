@@ -2,3 +2,7 @@ javac -cp "lib/*;." -d "bin" (Get-ChildItem -Path ".\src\main\java\com\mybf\*\*.
 dir /s /b ".\src\main\java\com\mybf\*.java" > sources.txt
 
 javac -cp "lib/*;." -d bin @sources.txt
+
+
+javac -cp "lib/*;." -d "bin" (Get-ChildItem -Path ".\src\main\java\com\mybf\*\*.java" -Recurse).FullName 
+dir /s /b ".\src\main\java\com\mybf\*.java" > sources.txt
