@@ -1,4 +1,4 @@
-package com.mnemos.utils;
+package com.mybf.utils;
 
 import java.lang.reflect.Method;
 

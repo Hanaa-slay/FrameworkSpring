@@ -1,12 +1,15 @@
-package com.mnemos.utils;
+package com.mybf.utils;
 
-import com.mnemos.annotation.UrlMapping;
+import com.mybf.annotation.UrlMapping;
+import com.mybf.exception.RouteMappingException;
 
 import java.beans.MethodDescriptor;
 import java.io.File;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 import java.net.URL;
 import java.util.*;
 
@@ -78,7 +81,26 @@ public class Utilitaire {
         }
 
         Map<String, RouteMapping> routes = new HashMap<>();
-        return null;
+        for(Class<?> c: controllers){
+            Method[] methods = c.getMethods();
+            for(Method method: methods){
+                if(method.isAnnotationPresent(annotation)){
+                    UrlMapping urlMapping = (UrlMapping) method.getAnnotation(annotation);
+                    String link = urlMapping.url();
+                    if((url.isEmpty() && link.equals("/")) || url.equals(link)){
+                        RouteMapping route = new RouteMapping(c, method);
+                        if(routes.containsKey(url)){
+                            RouteMapping existingRoute = routes.get(url);
+                            throw new RouteMappingException("L'url: "+link+" utilisé dans la méthode "+method.getName()
+                                +" dans la classe: "+c.getName()+" est déjà utilisé dans la méthode "+existingRoute.getMethod().getName()
+                                + " dans la classe: "+existingRoute.getController().getName());
+                        }
+                        routes.put(url, route);
+                    }
+                }
+            }
+        }
+        return routes;
     }
 
     public Map<String, List<Method>> getMethodWithUrl(String url, Class<? extends Annotation> annotation, List<Class<?>> controllers){
@@ -109,8 +131,76 @@ public class Utilitaire {
         return methodAndClass;
     }
 
-    public static boolean isUrlValid(String url, List<String> urlValid){
+    public Map<UrlMethod, RouteMapping> getMethods(String url, Class<? extends Annotation> annotation, List<Class<?>> controllers){
+        if(!annotation.isAssignableFrom(UrlMapping.class)){
+            throw new RuntimeException("Invalid annotation type");
+        }
+
+        Map<UrlMethod, RouteMapping> routes = new HashMap<>();
+
+        for(Class<?> controller: controllers){
+            Method[] methods = controller.getMethods();
+            for(Method method: methods){
+                if(method.isAnnotationPresent(annotation)){
+                    UrlMapping urlMapping = (UrlMapping) method.getAnnotation(annotation);
+                    String link = urlMapping.url();
+                    if((url.isEmpty() && link.equals("/")) || url.equals(link)){
+                        String requestMethod = urlMapping.method();
+                        UrlMethod um = new UrlMethod(link, requestMethod);
+                        RouteMapping route = new RouteMapping(controller, method);
+
+                        for(Map.Entry<UrlMethod, RouteMapping> entry: routes.entrySet()){
+                            UrlMethod urlMethodExistant = entry.getKey();
+                            RouteMapping routeExistant = entry.getValue();
+                            if(urlMethodExistant.equals(um)){
+                                throw new RuntimeException("La méthode HTTP "+um.getMethod()+" associé au lien "+url+" dans la classe "+controller.getName()
+                                        +" est déjà utiliser dans la méthode "+route.getMethod().getName()+" de la classe "+route.getController().getName());
+                            }
+                        }
+                        routes.put(um, route);
+                    }
+                }
+            }
+        }
+
+        return routes;
+    }
+
+    public List<String> getExistingLink(List<Class<?>> controllers, Class<? extends Annotation> annotation){
+        List<String> links = new ArrayList<>();
+
+        for(Class<?> c: controllers){
+            Method[] methods = c.getMethods();
+            for(Method method: methods){
+                if(method.isAnnotationPresent(annotation)){
+                    UrlMapping urlMapping = (UrlMapping) method.getAnnotation(annotation);
+                    String link = urlMapping.url();
+                    if(!links.contains(link)){
+                        links.add(link);
+                    }
+                }
+            }
+        }
+
+        return links;
+    }
+
+    public Object invoke(RouteMapping routeMapping)  {
+        try{
+            Class<?> controller = routeMapping.getController();
+            Object o = controller.getConstructor().newInstance();
+            Method method = routeMapping.getMethod();
+
+            return method.invoke(o);
+        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException | InstantiationException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public boolean isUrlValid(String url, List<String> urlValid){
         for(String link: urlValid){
+            if(url.isEmpty() && link.equals("/"))return true;
+
             if(url.equals(link)){
                 return true;
             }
