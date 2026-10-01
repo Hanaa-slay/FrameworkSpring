@@ -39,4 +39,9 @@ public class UrlMethod {
         UrlMethod urlMethod = (UrlMethod) object;
         return Objects.equals(url, urlMethod.url) && Objects.equals(capitalize(method),capitalize(urlMethod.method));
     }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(url, method);
+    }
 }

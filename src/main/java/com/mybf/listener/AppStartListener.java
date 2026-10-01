@@ -41,6 +41,8 @@ public class AppStartListener implements ServletContextListener {
         }
     }
 
-    public void contextDestroyed(ServletContextEvent sce) {
+    
+    public void contextDestroyed(ServletContextEvent servletContextEvent) {
+        servletContextEvent.getServletContext().log("Arret de l'application");
     }
 }

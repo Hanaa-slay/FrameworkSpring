@@ -10,6 +10,8 @@ import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import com.mybf.view.ViewResolver;
+import com.mybf.utils.Mapping;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -27,6 +29,12 @@ public class FrontControllerServlet extends HttpServlet {
     private String suffix;
     private String prefix;
 
+
+    List<String> listeControllers;
+
+    Map<UrlMethod, Mapping> urlMapping;
+
+    Object applicationContext;
 
 
     public void init(){
@@ -71,6 +79,85 @@ public class FrontControllerServlet extends HttpServlet {
                 }
                 RequestDispatcher dispatcher = req.getRequestDispatcher(view);
                 dispatcher.forward(req, res);
+            }
+        }
+    }
+
+
+    protected void afficher(String url, String method, HttpServletRequest request, HttpServletResponse response,
+            PrintWriter out)
+            throws ServletException, IOException {
+
+        UrlMethod urlMethod = new UrlMethod(url, method);
+        Mapping mapping = urlMapping.get(urlMethod);
+
+        if (mapping != null) {
+            
+            try {
+                Object instance = mapping.getClasse().getDeclaredConstructor().newInstance();
+                Method methode = mapping.getMethode();
+                boolean is_apiRest = Utilitaire.estApiRest(methode);
+
+                if(is_apiRest){
+                    response.setContentType("application/json");
+                }
+                else
+                {
+                    response.setContentType("text/html");
+
+                    out.println("<h1>Front Controller</h1>");
+                    out.println("<p>URL recue : " + url + "</p>");
+                    out.println("<p>URL: " + urlMethod.getUrl() + " avec la methode : " + urlMethod.getMethod() + "| Classe: "
+                    + mapping.getClasse().getName() + " | Fonction: "
+                    + mapping.getMethode().getName() + "</p>");
+                }
+
+                Object[] arguments = new Object[methode.getParameters().length];
+
+                // MIla jerena oe inona daholo ny parametres an'ilay methode
+                if(applicationContext != null){
+                    Utilitaire.creerArguments(methode, arguments, applicationContext);
+                }else{
+                    Utilitaire.creerArguments(methode, arguments);
+                }
+
+                Object resultat = methode.invoke(instance, arguments);
+
+                // tokony mbola misy condition hoe raha apiRest dia json no averina fa raha tsy apiRest dia ModelAndView no averina
+                if (resultat instanceof ModelAndView) {
+                    ModelAndView mv = (ModelAndView) resultat;
+                    ViewResolver viewResolver = new ViewResolver();
+                    viewResolver.setNom_vue(mv.getUrl());
+                    viewResolver.setPrefix_vue(getServletContext().getInitParameter("prefixVue"));
+                    viewResolver.setExtension_vue(getServletContext().getInitParameter("suffixVue"));
+
+                    for (Map.Entry<String, Object> entry : mv.getAttribute().entrySet()) {
+                        request.setAttribute(entry.getKey(), entry.getValue());
+                    }
+
+                    RequestDispatcher dispatcher = request.getRequestDispatcher(viewResolver.getCheminCompletVue());
+                    dispatcher.forward(request, response);
+                } else if(is_apiRest){
+                    // out.println("<p>Le résultat de la méthode n'est pas de type ModelAndView.</p>");
+                    if(resultat instanceof String){
+                        out.println((String) resultat);
+                    }else{
+                        out.println(Utilitaire.toJson(resultat));
+                    }
+                }
+
+            } catch (Exception e) {
+                out.println("<p>Erreur lors de l'invocation de la méthode : " + e.getMessage() + "</p>");
+            }
+        } else {
+            out.println("Url non trouvee : " + url);
+            out.println("<h2>Liste des URL disponibles :</h2>");
+            for (UrlMethod urlMethodDisponible : urlMapping.keySet()) {
+                Mapping mappingDisponible = urlMapping.get(urlMethodDisponible);
+                out.println("<p>URL: " + urlMethodDisponible.getUrl() + " avec la methode : "
+                        + urlMethodDisponible.getMethod() + "| Classe: " + mappingDisponible.getClasse().getName()
+                        + " | Fonction: "
+                        + mappingDisponible.getMethode().getName() + "</p>");
             }
         }
     }
