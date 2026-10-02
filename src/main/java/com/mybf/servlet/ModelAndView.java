@@ -16,6 +16,10 @@ public class ModelAndView {
         attributes.put(key, value);
     }
 
+    // public  getAttribute() {
+    //     return this.attribute;
+    // }
+
     public Object getAttribute(String key){
         return attributes.get(key);
     }
@@ -26,5 +30,9 @@ public class ModelAndView {
 
     public String getUrl(){
         return this.url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
     }
 }
