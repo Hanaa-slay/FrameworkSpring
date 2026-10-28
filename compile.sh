@@ -10,7 +10,7 @@ echo "Recherche des fichiers Java..."
 find src/main/java -name "*.java" > sources.txt
 
 echo "Compilation..."
-javac -cp "lib/*:." -d bin @sources.txt
+javac -parameters -cp "lib/*:." -d bin @sources.txt
 
 rm sources.txt
 
