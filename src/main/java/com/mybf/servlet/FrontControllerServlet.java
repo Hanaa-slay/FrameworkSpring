@@ -15,7 +15,9 @@ import com.mybf.utils.Mapping;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
 import java.util.Map;
 
@@ -129,6 +131,11 @@ public class FrontControllerServlet extends HttpServlet {
                             + " : compilez le controller avec l'option javac -parameters");
                 }
 
+                if (!Utilitaire.estTypeSimple(paramType)) {
+                    arguments[i] = bindObject(req, paramType, paramName);
+                    continue;
+                }
+
                 String value = req.getParameter(paramName);
                 if (value == null || (value.isEmpty() && paramType != String.class)) {
                     arguments[i] = defaultValue(paramType);
@@ -144,6 +151,46 @@ public class FrontControllerServlet extends HttpServlet {
         }
 
         return arguments;
+    }
+
+    // Instancie l'objet puis remplit ses attributs simples avec "parametre.attribut" ou, a defaut, "attribut"
+    private Object bindObject(HttpServletRequest req, Class<?> type, String paramName) throws ServletException {
+        Object instance;
+        try {
+            instance = type.getDeclaredConstructor().newInstance();
+        } catch (ReflectiveOperationException e) {
+            throw new ServletException("Impossible d'instancier " + type.getName()
+                    + " pour le parametre " + paramName + " : un constructeur sans argument est requis", e);
+        }
+
+        for (Class<?> c = type; c != null && c != Object.class; c = c.getSuperclass()) {
+            for (Field field : c.getDeclaredFields()) {
+                if (Modifier.isStatic(field.getModifiers()) || !Utilitaire.estTypeSimple(field.getType())) {
+                    continue;
+                }
+
+                String value = req.getParameter(paramName + "." + field.getName());
+                if (value == null) {
+                    value = req.getParameter(field.getName());
+                }
+                // Attribut absent ou vide : on garde la valeur par defaut de l'objet
+                if (value == null || (value.isEmpty() && field.getType() != String.class)) {
+                    continue;
+                }
+
+                try {
+                    field.setAccessible(true);
+                    field.set(instance, convertValue(value, field.getType()));
+                } catch (NumberFormatException e) {
+                    throw new ServletException("Valeur invalide pour " + paramName + "." + field.getName() + " : " + value, e);
+                } catch (IllegalAccessException e) {
+                    throw new ServletException("Impossible de remplir " + paramName + "." + field.getName(), e);
+                }
+                System.out.println("[Binding] " + paramName + "." + field.getName() + " = " + value);
+            }
+        }
+
+        return instance;
     }
 
     // null par defaut, sauf pour les types primitifs qui ne l'acceptent pas
