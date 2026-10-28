@@ -29,19 +29,21 @@ public class UrlMethod {
         this.method = method;
     }
 
-    private String capitalize(String str){
-        return str.toUpperCase();
+    private String normalize(String value) {
+        return value == null ? null : value.trim().toUpperCase();
     }
 
     @Override
     public boolean equals(Object object) {
+        if (this == object) return true;
         if (object == null || getClass() != object.getClass()) return false;
         UrlMethod urlMethod = (UrlMethod) object;
-        return Objects.equals(url, urlMethod.url) && Objects.equals(capitalize(method),capitalize(urlMethod.method));
+        return Objects.equals(normalize(url), normalize(urlMethod.url))
+                && Objects.equals(normalize(method), normalize(urlMethod.method));
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(url, method);
+        return Objects.hash(normalize(url), normalize(method));
     }
 }

@@ -1,0 +1,189 @@
+Creer un framework spring from scratch
+
+Besoin:
+
+creer la classe FrontControllerServlet
+redefinir doGet, doPost
+creer une fonction processRequest
+
+Objectif: Spring mvc, web api
+
+comment creer une annotation, tester, recuperer
+
+classe, methode, attribut no afaka ametrahana annotation
+
+donc rehefa mcreer annotation de mila omena azy oe aiza avy no afaka ampiasana azy
+
+manamboatra annotation de manamboatra classe 1 itestena anle annotation
+
+ex: 
+@Controller 
+public class EmpController(){
+    @GetMapping('')
+    lister(@RequestMapping ...){
+        ModelAndView mv = ...
+
+        return mv;
+    }
+}
+
+
+
+------------------------------------------------
+Sprint3 et Sprint3 bis
+
+> Sprint 3:
+modifiena le UrlMapping, de asina argument vaovao oe ("GET"/"POST")
+
+Donc lasa miova le map au lieu de <url, Mapping> de lasa <urlMethod, Mapping>
+
+ao anaty Classe UrlMethode misy attribut 2: url, methoe (GET/POST)
+ avec fonction equals surdefini: rehefa misy urlMethod 2 mitovy de tsy afaka ampidirina ao anaty map le faharoa
+
+ 
+
+
+
+> Sprint 3 bis:
+invoquena le methode refa fantatra le url
+
+> Sprint 4
+mampiasa Listener: au demarrage appli web no manao ny asa rehetra ao anaty init
+
+> Sprint 5
+mamorona ModelAndView mba itenenanana anle Controller oe inona ny vue mifanaraka amle fonction
+
+
+
+
+
+mila manamboatra methode utilitaire mlister ny attribut anle fonction rehetra ao anaty controller, injectena avy eo le ApplicationContext, cote framework zany tokony manao test oe raha ApplicationContext ny type anle attribut de tokony manao anzao ...
+
+
+> Sprint 5 bis: atao mande am spring le framework (tonga mande foana le izy na misy spring na tsisy)
+
+> Sprint 6: manamboatra api de atao mamerina json
+    (quelque part zany tokony manana annotation 1 dans lequel misy value 'lien', de rehefa antsoina iny lien iny de json no averina fa tsy ModelAndView)
+
+Manampy annotation 1 apetaka am methode (cote test), tsy mande any am vue fa tonga de mamerina json
+atao oe @Apirest na @Json na @WebAPi ny anarany
+
+le methode atao mretourner object de zay vo avadika json
+
+raha string le retour de tsy miantso toJson tsony
+fa raha object de mila miantso toJson mamadika anle object ho json
+
+NB: double annotation
+
+de avy eo atao printWriter fotsiny
+
+
+> Sprint 7: 
+binding
+ fandefasana donne de vue mande controller
+
+ lasa misy parametre Emp ohatra ao anaty methode
+
+ ex: save(String nom, String prenom, int age){} atao null daoly lony par defaut
+    alaina daholo ny anarana parametre avy any am view
+
+    de liena avy eo
+
+j'explique: 
+manana formulaire za cote vue (manana champ 3: nom, prenom, age)
+manao mapping ana url foana (POST, de miaraka amle url)
+puis rehefa hita le UrlMethode mifanaraka amle url any am controller de verifiena ny parametre anle fonction (inona daholo ny parametre?)
+verifiena oe inona daoly ny anaranle parametre nalefa avy any am vue, de matchena am non anle variable ao amle parametre anle fonction
+de affichena fotsiny lony pour l'instant le valeur.
+
+
+> Sprint 7 bis: 
+binding objet 
+ex: parametre anle fonction ohatra Employee de tonga de le instance anle Employee no fenoina
+
+=>>> A FAIRE AUSSI LISTE NO PARAMETRE AO ANATY CONTROLLER
+
+> Sprint 8:
+upload ana fichier
+
+manamboatra classe vaovao MapFile ao anatiny misy attribut maromaro: (nom_fichier, extension, tableau bytes)
+
+de manao binding otrany tam sprint 7 bis ihany, verifiena oe any am formulaire ve misy input manana anarana mitovy ary am parametre fonction controller, si oui, verifiena oe MapFile ve ny type, raha MapFile ny type de alaina ny anarana avy any am request, alaina ny extension, de alaina le tableau de bytes
+de affichena lony ohatra
+
+atao attribut ana classe ohatra le MapFile na tonga de atao parametre ana fonction de tokony mety foana
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+> Sprint 9:
+rendre la session de l'utilisateur disponible cote controller developpeur pour pouvoir envoyer des valeurs et prendre des valeurs
+
+Comment faire?
+Mitovy am tamin'ny binding ihany, 
+manamboatra classe Session vaovao, de raha mahita an'iny le framework de injectena
+
+ao anatinle Session, afaka manao ajout ana attribut, mget attribut, modifier attribut
+
+ao anaty session asina attribut oe, map<String, Object> (nom attribut, valeur)
+
+fenoina a partir httpSession le map
+
+raha misy modification any am session le niinvokena ao anaty controller, de tsindrina amle map<String, Object> le httpSession taloha
+
+
+tazomina ao anaty context ny session rehetra, donc manana Map<String, Session> tsika ao anaty (idSession, Session)
+
+> Sprint 10:
+tsy maintsy authentifie le olona zay vo afaka miantso url avy any am controller
+raha misy url 1 misy annotation oe @Auth de mila authentifie zany le olona vao mahazo miacceder anle url
+
+Comment faire? 
+
+
+-> Possible valiny
+1- manamboatra annotation @authentificate par exemple
+2- verifiena ny methode rehetra ao anaty controller oe iza daholo no misy an'io annotation
+3- rehefa mi-connecte de mienregistre valeur ao anaty session ohatra (pour savoir oe inona ny anaranle variable session, de specifiena ao anaty web.xml izy)
+4- de iny nom de variable session iny no verifiena avy eo raha misy ao anaty session, raha misy de afaka miditra ao am le lien, sinon de manao access denied mamerina http 403
+
+=> donc possible oe mila misy donnee miditra any anaty base (user, mdp)
+
+
+> Sprint 10 bis:
+tsy maintsy manana role specifique zay vo afaka miantso anle url any am controller
+
+-> Meme chose que pour Sprint 10
+1- le @authentificate asina valeur ao anaty oe role = [] ... inona
+2- rehefa manao connexion otrany tetsy ambony de au lieu de userId fotsiny no tazomina ao am session, de on garde aussi le role de l'utilisateur 
+3- de a chaque fois miantso url 1, ka misy valeur le role, de verifiena lony oe misy userId sy misy anle role ilaina ve ao anaty session, raha misy de omena acces amle url izy, sinon de 403 forbidden
+
+
+NB: Rehefa mideconnecte le user, de fafana ny userId sy ny role ao anaty session
+
+
+
+
+
+
+
+(Mbola tsy atao zao)
+
+SINGLETON CONTROLLER 
+1- Controller 1 tokony instance 1, de iny no mamaly ny requete rehetra
+manao verification oe raha efa instance le controller de le instance efa cree no ampiasaina, sinon mamorona instance vaovao de ampirimina anaty Context (cle: nom_controller, valeur: ny packagenle izy)
+
+ze zavatra itambarana ihany no azo atao anaty controller, sinon atao parametre
+
