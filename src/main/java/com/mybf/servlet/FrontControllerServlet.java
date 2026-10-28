@@ -12,8 +12,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import com.mybf.view.ViewResolver;
 import com.mybf.utils.Mapping;
+import com.mybf.utils.MapFile;
+import jakarta.servlet.annotation.MultipartConfig;
+import jakarta.servlet.http.Part;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -21,6 +25,8 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
 import java.util.Map;
 
+// Necessaire pour que req.getPart() fonctionne sur les formulaires enctype="multipart/form-data"
+@MultipartConfig
 public class FrontControllerServlet extends HttpServlet {
 
     private Utilitaire util;
@@ -131,6 +137,12 @@ public class FrontControllerServlet extends HttpServlet {
                             + " : compilez le controller avec l'option javac -parameters");
                 }
 
+                if (paramType == MapFile.class) {
+                    arguments[i] = bindFile(req, paramName);
+                    System.out.println("[Binding] " + method.getName() + " -> " + paramName + " = " + arguments[i]);
+                    continue;
+                }
+
                 if (!Utilitaire.estTypeSimple(paramType)) {
                     arguments[i] = bindObject(req, paramType, paramName);
                     continue;
@@ -165,7 +177,28 @@ public class FrontControllerServlet extends HttpServlet {
 
         for (Class<?> c = type; c != null && c != Object.class; c = c.getSuperclass()) {
             for (Field field : c.getDeclaredFields()) {
-                if (Modifier.isStatic(field.getModifiers()) || !Utilitaire.estTypeSimple(field.getType())) {
+                if (Modifier.isStatic(field.getModifiers())) {
+                    continue;
+                }
+
+                if (field.getType() == MapFile.class) {
+                    MapFile file = bindFile(req, paramName + "." + field.getName());
+                    if (file == null) {
+                        file = bindFile(req, field.getName());
+                    }
+                    if (file != null) {
+                        try {
+                            field.setAccessible(true);
+                            field.set(instance, file);
+                        } catch (IllegalAccessException e) {
+                            throw new ServletException("Impossible de remplir " + paramName + "." + field.getName(), e);
+                        }
+                        System.out.println("[Binding] " + paramName + "." + field.getName() + " = " + file);
+                    }
+                    continue;
+                }
+
+                if (!Utilitaire.estTypeSimple(field.getType())) {
                     continue;
                 }
 
@@ -191,6 +224,31 @@ public class FrontControllerServlet extends HttpServlet {
         }
 
         return instance;
+    }
+
+    // Recupere le fichier envoye sous ce nom (input type="file"), null si absent ou si la requete n'est pas multipart
+    private MapFile bindFile(HttpServletRequest req, String name) throws ServletException {
+        String contentType = req.getContentType();
+        if (contentType == null || !contentType.toLowerCase().startsWith("multipart/")) {
+            return null;
+        }
+
+        try {
+            Part part = req.getPart(name);
+            if (part == null || part.getSubmittedFileName() == null || part.getSubmittedFileName().isEmpty()) {
+                return null;
+            }
+
+            String nomFichier = part.getSubmittedFileName();
+            int point = nomFichier.lastIndexOf('.');
+            String extension = point >= 0 ? nomFichier.substring(point + 1) : "";
+
+            try (InputStream in = part.getInputStream()) {
+                return new MapFile(nomFichier, extension, in.readAllBytes());
+            }
+        } catch (IOException e) {
+            throw new ServletException("Impossible de lire le fichier " + name, e);
+        }
     }
 
     // null par defaut, sauf pour les types primitifs qui ne l'acceptent pas
