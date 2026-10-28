@@ -301,6 +301,8 @@ public class Utilitaire {
             String nature;
             if (HttpServletRequest.class.isAssignableFrom(type) || HttpServletResponse.class.isAssignableFrom(type)) {
                 nature = "injecte";
+            } else if (type == MapFile.class) {
+                nature = "fichier";
             } else if (estTypeSimple(type)) {
                 nature = "simple";
             } else {
