@@ -107,7 +107,7 @@ public class FrontControllerServlet extends HttpServlet {
         }
     }
 
-    private Object[] createArguments(HttpServletRequest req, HttpServletResponse res, Method method) {
+    private Object[] createArguments(HttpServletRequest req, HttpServletResponse res, Method method) throws ServletException {
         Parameter[] parameters = method.getParameters();
         Object[] arguments = new Object[parameters.length];
 
@@ -123,14 +123,40 @@ public class FrontControllerServlet extends HttpServlet {
             } else if (applicationContext != null && paramType.isAssignableFrom(applicationContext.getClass())) {
                 arguments[i] = applicationContext;
             } else {
-                String value = req.getParameter(paramName);
-                if (value != null) {
-                    arguments[i] = convertValue(value, paramType);
+                // Sans l'option -parameters de javac, les noms sont arg0, arg1... et ne matchent jamais la vue
+                if (!parameter.isNamePresent()) {
+                    throw new ServletException("Nom du parametre introuvable pour " + method.getName()
+                            + " : compilez le controller avec l'option javac -parameters");
                 }
+
+                String value = req.getParameter(paramName);
+                if (value == null || (value.isEmpty() && paramType != String.class)) {
+                    arguments[i] = defaultValue(paramType);
+                } else {
+                    try {
+                        arguments[i] = convertValue(value, paramType);
+                    } catch (NumberFormatException e) {
+                        throw new ServletException("Valeur invalide pour le parametre " + paramName + " : " + value, e);
+                    }
+                }
+                System.out.println("[Binding] " + method.getName() + " -> " + paramName + " = " + arguments[i]);
             }
         }
 
         return arguments;
+    }
+
+    // null par defaut, sauf pour les types primitifs qui ne l'acceptent pas
+    private Object defaultValue(Class<?> type) {
+        if (!type.isPrimitive()) return null;
+        if (type == boolean.class) return false;
+        if (type == char.class) return '\0';
+        if (type == long.class) return 0L;
+        if (type == double.class) return 0d;
+        if (type == float.class) return 0f;
+        if (type == short.class) return (short) 0;
+        if (type == byte.class) return (byte) 0;
+        return 0;
     }
 
     private Object convertValue(String value, Class<?> type) {
@@ -139,6 +165,8 @@ public class FrontControllerServlet extends HttpServlet {
         if (type == Long.class || type == long.class) return Long.parseLong(value);
         if (type == Double.class || type == double.class) return Double.parseDouble(value);
         if (type == Float.class || type == float.class) return Float.parseFloat(value);
+        if (type == Short.class || type == short.class) return Short.parseShort(value);
+        if (type == Byte.class || type == byte.class) return Byte.parseByte(value);
         if (type == Boolean.class || type == boolean.class) return Boolean.parseBoolean(value);
         if (type == Character.class || type == char.class) return value.charAt(0);
         return value;
