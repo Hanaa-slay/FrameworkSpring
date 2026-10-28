@@ -30,6 +30,7 @@ public class AppStartListener implements ServletContextListener {
             Map<UrlMethod, RouteMapping> routes = new HashMap<>();
 
             util.scanControllersInPackage(packageName, routes, Controller.class, UrlMapping.class);
+            Utilitaire.afficherParametres(routes);
 
             context.setAttribute("routes", routes);
             context.setAttribute("prefix", prefix);

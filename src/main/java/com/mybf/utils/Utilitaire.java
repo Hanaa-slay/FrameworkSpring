@@ -3,6 +3,8 @@ package com.mybf.utils;
 import com.google.gson.Gson;
 import com.mybf.annotation.UrlMapping;
 import com.mybf.exception.UrlNotFoundException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.File;
 import java.lang.annotation.Annotation;
@@ -281,6 +283,40 @@ public class Utilitaire {
     public static void creerArguments(Method methode, Object[] arguments) {
         for (int i = 0; i < methode.getParameters().length; i++) {
             Parameter p = methode.getParameters()[i];
+        }
+    }
+
+    // Types que le binding sait convertir directement depuis une valeur de la vue
+    public static boolean estTypeSimple(Class<?> type) {
+        return type.isPrimitive() || type == String.class
+                || type == Integer.class || type == Long.class || type == Double.class
+                || type == Float.class || type == Short.class || type == Byte.class
+                || type == Boolean.class || type == Character.class;
+    }
+
+    public static List<String> listerParametres(Method methode) {
+        List<String> parametres = new ArrayList<>();
+        for (Parameter p : methode.getParameters()) {
+            Class<?> type = p.getType();
+            String nature;
+            if (HttpServletRequest.class.isAssignableFrom(type) || HttpServletResponse.class.isAssignableFrom(type)) {
+                nature = "injecte";
+            } else if (estTypeSimple(type)) {
+                nature = "simple";
+            } else {
+                nature = "objet";
+            }
+            parametres.add(p.getName() + " : " + type.getSimpleName() + " (" + nature + ")");
+        }
+        return parametres;
+    }
+
+    public static void afficherParametres(Map<UrlMethod, RouteMapping> routes) {
+        for (Map.Entry<UrlMethod, RouteMapping> entry : routes.entrySet()) {
+            Method methode = entry.getValue().getMethod();
+            System.out.println("[Parametres] " + entry.getKey().getMethod() + " " + entry.getKey().getUrl()
+                    + " -> " + entry.getValue().getController().getSimpleName() + "." + methode.getName()
+                    + " " + listerParametres(methode));
         }
     }
 
