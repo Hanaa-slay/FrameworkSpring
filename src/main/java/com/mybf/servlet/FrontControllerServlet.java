@@ -1,5 +1,6 @@
 package com.mybf.servlet;
 
+import com.mybf.annotation.Auth;
 import com.mybf.annotation.Controller;
 import com.mybf.annotation.UrlMapping;
 import com.mybf.dto.Session;
@@ -25,6 +26,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Map;
@@ -85,10 +87,10 @@ public class FrontControllerServlet extends HttpServlet {
             throw new ServletException("Impossible d'instancier le contrôleur : " + routeMapping.getController().getName(), e);
         }
 
-        // Verifie avant le binding : rien n'est lu ni uploade pour un utilisateur non connecte
-        if (!estAutorise(req, methodToInvoke)) {
-            res.sendError(HttpServletResponse.SC_UNAUTHORIZED,
-                    "Authentification requise pour acceder a " + url);
+        // Verifie avant le binding : rien n'est lu ni uploade pour un utilisateur non autorise
+        int acces = verifierAcces(req, methodToInvoke);
+        if (acces != HttpServletResponse.SC_OK) {
+            res.sendError(acces, messageRefus(acces, url));
             return;
         }
 
@@ -187,14 +189,34 @@ public class FrontControllerServlet extends HttpServlet {
     }
 
     // Une methode sans @Auth est toujours autorisee ; avec @Auth, la variable authSession doit exister dans la Session
-    private boolean estAutorise(HttpServletRequest req, Method method) {
+    // et, si des roles sont precises, sa valeur doit correspondre a l'un d'eux.
+    // Retourne SC_OK si autorise, SC_UNAUTHORIZED si non connecte, SC_FORBIDDEN si le role ne correspond pas
+    private int verifierAcces(HttpServletRequest req, Method method) {
         if (!Utilitaire.estAuth(method)) {
-            return true;
+            return HttpServletResponse.SC_OK;
         }
-        boolean connecte = chargerSession(req).contains(authSession);
-        System.out.println("[Auth] " + method.getName() + " -> " + authSession
-                + (connecte ? " present : acces autorise" : " absent : acces refuse"));
-        return connecte;
+
+        Object valeur = chargerSession(req).get(authSession);
+        if (valeur == null) {
+            System.out.println("[Auth] " + method.getName() + " -> " + authSession + " absent : acces refuse");
+            return HttpServletResponse.SC_UNAUTHORIZED;
+        }
+
+        String[] roles = method.getAnnotation(Auth.class).role();
+        if (roles.length == 0 || Arrays.asList(roles).contains(String.valueOf(valeur))) {
+            System.out.println("[Auth] " + method.getName() + " -> " + authSession + " = " + valeur + " : acces autorise");
+            return HttpServletResponse.SC_OK;
+        }
+
+        System.out.println("[Auth] " + method.getName() + " -> " + authSession + " = " + valeur
+                + " hors de " + Arrays.toString(roles) + " : acces refuse");
+        return HttpServletResponse.SC_FORBIDDEN;
+    }
+
+    private String messageRefus(int acces, String url) {
+        return acces == HttpServletResponse.SC_UNAUTHORIZED
+                ? "Authentification requise pour acceder a " + url
+                : "Role non autorise pour acceder a " + url;
     }
 
     // Copie les attributs de HttpSession dans notre Session
@@ -366,8 +388,9 @@ public class FrontControllerServlet extends HttpServlet {
                             + route.getMethod().getName() + "</p>");
                 }
 
-                if (!estAutorise(request, methode)) {
-                    out.println("<p>Authentification requise pour acceder a " + url + "</p>");
+                int acces = verifierAcces(request, methode);
+                if (acces != HttpServletResponse.SC_OK) {
+                    out.println("<p>" + messageRefus(acces, url) + "</p>");
                     return;
                 }
 
