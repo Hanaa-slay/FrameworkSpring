@@ -5,9 +5,10 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-// La methode n'est executee que si la variable de session configuree (init-param "authSession") existe
+// La methode n'est executee que si la variable de session configuree (init-param "authSession") existe.
+// Avec role, sa valeur doit en plus etre l'un des roles autorises : @Auth(role="admin") ou @Auth(role={"admin", "manager"})
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Auth {
-
+    String[] role() default {};
 }
