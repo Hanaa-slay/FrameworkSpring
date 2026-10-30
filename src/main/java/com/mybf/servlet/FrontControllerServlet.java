@@ -2,6 +2,7 @@ package com.mybf.servlet;
 
 import com.mybf.annotation.Controller;
 import com.mybf.annotation.UrlMapping;
+import com.mybf.dto.Session;
 import com.mybf.utils.RouteMapping;
 import com.mybf.utils.UrlMethod;
 import com.mybf.utils.Utilitaire;
@@ -14,6 +15,7 @@ import com.mybf.view.ViewResolver;
 import com.mybf.utils.Mapping;
 import com.mybf.utils.MapFile;
 import jakarta.servlet.annotation.MultipartConfig;
+import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.Part;
 
 import java.io.IOException;
@@ -23,6 +25,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.util.Map;
 
 // Necessaire pour que req.getPart() fonctionne sur les formulaires enctype="multipart/form-data"
@@ -80,6 +84,8 @@ public class FrontControllerServlet extends HttpServlet {
 
         try {
             Object result = methodToInvoke.invoke(controllerInstance, arguments);
+            // Avant le forward, pour que la vue voie deja la session a jour
+            synchroniserSessions(req, arguments);
 
             if (result instanceof ModelAndView) {
                 ModelAndView mv = (ModelAndView) result;
@@ -130,6 +136,9 @@ public class FrontControllerServlet extends HttpServlet {
                 arguments[i] = res;
             } else if (applicationContext != null && paramType.isAssignableFrom(applicationContext.getClass())) {
                 arguments[i] = applicationContext;
+            } else if (paramType == Session.class) {
+                arguments[i] = chargerSession(req);
+                System.out.println("[Session] " + method.getName() + " -> " + paramName + " = " + arguments[i]);
             } else {
                 // Sans l'option -parameters de javac, les noms sont arg0, arg1... et ne matchent jamais la vue
                 if (!parameter.isNamePresent()) {
@@ -163,6 +172,40 @@ public class FrontControllerServlet extends HttpServlet {
         }
 
         return arguments;
+    }
+
+    // Copie les attributs de HttpSession dans notre Session
+    private Session chargerSession(HttpServletRequest req) {
+        Session session = new Session();
+        HttpSession httpSession = req.getSession();
+        Enumeration<String> noms = httpSession.getAttributeNames();
+        while (noms.hasMoreElements()) {
+            String nom = noms.nextElement();
+            session.set(nom, httpSession.getAttribute(nom));
+        }
+        return session;
+    }
+
+    // Apres l'appel du controller : recopie le contenu des Session vers HttpSession,
+    // y compris les suppressions faites avec remove() ou clear()
+    private void synchroniserSessions(HttpServletRequest req, Object[] arguments) {
+        for (Object argument : arguments) {
+            if (!(argument instanceof Session)) {
+                continue;
+            }
+
+            Map<String, Object> donnees = ((Session) argument).getAll();
+            HttpSession httpSession = req.getSession();
+            for (String nom : Collections.list(httpSession.getAttributeNames())) {
+                if (!donnees.containsKey(nom)) {
+                    httpSession.removeAttribute(nom);
+                }
+            }
+            for (Map.Entry<String, Object> entry : donnees.entrySet()) {
+                httpSession.setAttribute(entry.getKey(), entry.getValue());
+            }
+            System.out.println("[Session] synchronisee vers HttpSession : " + argument);
+        }
     }
 
     // Instancie l'objet puis remplit ses attributs simples avec "parametre.attribut" ou, a defaut, "attribut"
@@ -302,6 +345,7 @@ public class FrontControllerServlet extends HttpServlet {
 
                 Object[] arguments = createArguments(request, response, methode);
                 Object resultat = methode.invoke(instance, arguments);
+                synchroniserSessions(request, arguments);
 
                 if (resultat instanceof ModelAndView) {
                     ModelAndView mv = (ModelAndView) resultat;
