@@ -2,6 +2,7 @@ package com.mybf.utils;
 
 import com.google.gson.Gson;
 import com.mybf.annotation.UrlMapping;
+import com.mybf.dto.Session;
 import com.mybf.exception.UrlNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -299,7 +300,8 @@ public class Utilitaire {
         for (Parameter p : methode.getParameters()) {
             Class<?> type = p.getType();
             String nature;
-            if (HttpServletRequest.class.isAssignableFrom(type) || HttpServletResponse.class.isAssignableFrom(type)) {
+            if (HttpServletRequest.class.isAssignableFrom(type) || HttpServletResponse.class.isAssignableFrom(type)
+                    || type == Session.class) {
                 nature = "injecte";
             } else if (type == MapFile.class) {
                 nature = "fichier";
