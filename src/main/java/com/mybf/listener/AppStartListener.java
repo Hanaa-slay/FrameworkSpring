@@ -22,6 +22,11 @@ public class AppStartListener implements ServletContextListener {
         String packageName = context.getInitParameter("packageController");
         String prefix = context.getInitParameter("prefix");
         String suffix = context.getInitParameter("suffix");
+        // Variable de session qui indique qu'un utilisateur est connecte (pour @Auth), "role" par defaut
+        String authSession = context.getInitParameter("authSession");
+        if (authSession == null || authSession.isBlank()) {
+            authSession = "role";
+        }
 
         try {
             //List<String> controllers = util.getListController(packageName, Controller.class);
@@ -35,6 +40,7 @@ public class AppStartListener implements ServletContextListener {
             context.setAttribute("routes", routes);
             context.setAttribute("prefix", prefix);
             context.setAttribute("suffix", suffix);
+            context.setAttribute("authSession", authSession);
 
             // context.setAttribute("controllers", controllers);
         } catch (Exception e) {

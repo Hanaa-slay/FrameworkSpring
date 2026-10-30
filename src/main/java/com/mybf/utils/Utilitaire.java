@@ -324,6 +324,10 @@ public class Utilitaire {
         }
     }
 
+    public static boolean estAuth(Method methode) {
+        return methode.isAnnotationPresent(com.mybf.annotation.Auth.class);
+    }
+
     public static boolean estApiRest(Method methode) {
         return methode.isAnnotationPresent(com.mybf.annotation.ApiRest.class);
     }

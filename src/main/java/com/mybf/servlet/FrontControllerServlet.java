@@ -38,6 +38,7 @@ public class FrontControllerServlet extends HttpServlet {
     private String suffix;
     private String prefix;
     private Object applicationContext;
+    private String authSession;
 
     @Override
     public void init() {
@@ -46,6 +47,10 @@ public class FrontControllerServlet extends HttpServlet {
         prefix = String.valueOf(getServletContext().getAttribute("prefix"));
         suffix = String.valueOf(getServletContext().getAttribute("suffix"));
         applicationContext = getServletContext().getAttribute("applicationContext");
+        authSession = (String) getServletContext().getAttribute("authSession");
+        if (authSession == null) {
+            authSession = "role";
+        }
     }
 
     @Override
@@ -78,6 +83,13 @@ public class FrontControllerServlet extends HttpServlet {
             controllerInstance = routeMapping.getController().getDeclaredConstructor().newInstance();
         } catch (Exception e) {
             throw new ServletException("Impossible d'instancier le contrôleur : " + routeMapping.getController().getName(), e);
+        }
+
+        // Verifie avant le binding : rien n'est lu ni uploade pour un utilisateur non connecte
+        if (!estAutorise(req, methodToInvoke)) {
+            res.sendError(HttpServletResponse.SC_UNAUTHORIZED,
+                    "Authentification requise pour acceder a " + url);
+            return;
         }
 
         Object[] arguments = createArguments(req, res, methodToInvoke);
@@ -172,6 +184,17 @@ public class FrontControllerServlet extends HttpServlet {
         }
 
         return arguments;
+    }
+
+    // Une methode sans @Auth est toujours autorisee ; avec @Auth, la variable authSession doit exister dans la Session
+    private boolean estAutorise(HttpServletRequest req, Method method) {
+        if (!Utilitaire.estAuth(method)) {
+            return true;
+        }
+        boolean connecte = chargerSession(req).contains(authSession);
+        System.out.println("[Auth] " + method.getName() + " -> " + authSession
+                + (connecte ? " present : acces autorise" : " absent : acces refuse"));
+        return connecte;
     }
 
     // Copie les attributs de HttpSession dans notre Session
@@ -341,6 +364,11 @@ public class FrontControllerServlet extends HttpServlet {
                     out.println("<p>URL: " + urlMethod.getUrl() + " avec la methode : " + urlMethod.getMethod() + "| Classe: "
                             + route.getController().getName() + " | Fonction: "
                             + route.getMethod().getName() + "</p>");
+                }
+
+                if (!estAutorise(request, methode)) {
+                    out.println("<p>Authentification requise pour acceder a " + url + "</p>");
+                    return;
                 }
 
                 Object[] arguments = createArguments(request, response, methode);
