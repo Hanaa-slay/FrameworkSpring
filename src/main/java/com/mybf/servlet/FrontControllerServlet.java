@@ -82,7 +82,7 @@ public class FrontControllerServlet extends HttpServlet {
 
         Object controllerInstance = null;
         try {
-            controllerInstance = routeMapping.getController().getDeclaredConstructor().newInstance();
+            controllerInstance = Utilitaire.getControllerInstance(routeMapping.getController(), getServletContext());
         } catch (Exception e) {
             throw new ServletException("Impossible d'instancier le contrôleur : " + routeMapping.getController().getName(), e);
         }
@@ -373,7 +373,7 @@ public class FrontControllerServlet extends HttpServlet {
 
         if (route != null) {
             try {
-                Object instance = route.getController().getDeclaredConstructor().newInstance();
+                Object instance = Utilitaire.getControllerInstance(route.getController(), getServletContext());
                 Method methode = route.getMethod();
                 boolean isApiRest = Utilitaire.estApiRest(methode);
 

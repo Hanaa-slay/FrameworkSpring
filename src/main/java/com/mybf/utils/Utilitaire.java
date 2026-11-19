@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.mybf.annotation.UrlMapping;
 import com.mybf.dto.Session;
 import com.mybf.exception.UrlNotFoundException;
+import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -22,10 +23,75 @@ import java.util.List;
 import java.util.Map;
 
 public class Utilitaire {
+    /** Nom de l'attribut de contexte contenant les instances des contrôleurs. */
+    public static final String CONTROLLERS_CONTEXT_ATTRIBUTE = "controllers";
+
     private List<Class<?>> listController;
     private String nom_package;
     private String annotation;
     private ElementType niveau;
+
+    /**
+     * Retourne l'instance partagee d'un contrôleur pour l'application.
+     *
+     * Le contexte est la portée de vie des contrôleurs : une instance est
+     * créée au premier besoin, puis réutilisée par toutes les requêtes.
+     */
+    public static Object getControllerInstance(Class<?> controllerClass, ServletContext context)
+            throws ReflectiveOperationException {
+        if (context == null) {
+            throw new IllegalArgumentException("Le ServletContext est obligatoire pour un contrôleur");
+        }
+
+        synchronized (context) {
+            Object value = context.getAttribute(CONTROLLERS_CONTEXT_ATTRIBUTE);
+            Map<String, Object> controllers;
+            if (value instanceof Map) {
+                controllers = (Map<String, Object>) value;
+            } else {
+                controllers = new HashMap<>();
+                context.setAttribute(CONTROLLERS_CONTEXT_ATTRIBUTE, controllers);
+            }
+
+            String key = controllerClass.getName();
+            Object instance = controllers.get(key);
+            if (instance == null) {
+                // Permet de reprendre une instance déjà déposée directement dans le contexte.
+                instance = context.getAttribute(key);
+                if (instance != null && !controllerClass.isInstance(instance)) {
+                    instance = null;
+                }
+            }
+            if (instance == null) {
+                instance = controllerClass.getDeclaredConstructor().newInstance();
+                injectServletContext(instance, context);
+            }
+            controllers.put(key, instance);
+            // L'attribut direct facilite aussi l'accès au contrôleur côté développeur.
+            context.setAttribute(key, instance);
+            return instance;
+        }
+    }
+
+    private static void injectServletContext(Object controller, ServletContext context)
+            throws IllegalAccessException {
+        Class<?> type = controller.getClass();
+        while (type != null) {
+            for (Field field : type.getDeclaredFields()) {
+                if (!ServletContext.class.isAssignableFrom(field.getType())) {
+                    continue;
+                }
+                boolean accessible = field.isAccessible();
+                try {
+                    field.setAccessible(true);
+                    field.set(controller, context);
+                } finally {
+                    field.setAccessible(accessible);
+                }
+            }
+            type = type.getSuperclass();
+        }
+    }
 
     public String getNom_package() {
         return nom_package;
